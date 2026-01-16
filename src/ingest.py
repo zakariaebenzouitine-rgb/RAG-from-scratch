@@ -14,7 +14,9 @@ def load_text_file(path: Path) -> str:
 
 
 def simple_chunk(text: str, chunk_size: int = 500, overlap: int = 100):
-    """Split text into overlapping chunks."""
+    """
+    Split text into overlapping chunks (word-based).
+    """
     words = text.split()
     chunks = []
 
@@ -28,6 +30,35 @@ def simple_chunk(text: str, chunk_size: int = 500, overlap: int = 100):
     return chunks
 
 
+def split_by_sections(text: str):
+    """
+    Split text into sections based on simple headers.
+    Assumes headers are uppercase lines or end with ':'.
+    """
+    sections = []
+    current_section = "Introduction"
+    buffer = []
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        is_header = line.isupper() or line.endswith(":")
+        if is_header:
+            if buffer:
+                sections.append((current_section, " ".join(buffer)))
+                buffer = []
+            current_section = line.strip(":")
+        else:
+            buffer.append(line)
+
+    if buffer:
+        sections.append((current_section, " ".join(buffer)))
+
+    return sections
+
+
 def ingest_text_file(
     path: Path,
     source: str,
@@ -36,25 +67,32 @@ def ingest_text_file(
     year: int,
     language: str = "en",
 ):
+    """
+    Ingest a text file and return section-aware document chunks.
+    """
     text = load_text_file(path)
-    chunks = simple_chunk(text)
+    sections = split_by_sections(text)
 
     documents = []
-    for chunk in chunks:
-        documents.append(
-            {
-                "id": str(uuid.uuid4()),
-                "content": chunk,
-                "source": source,
-                "modality": "text",
-                "metadata": {
-                    "title": title,
-                    "organization": organization,
-                    "year": year,
-                    "language": language,
-                },
-            }
-        )
+
+    for section_title, section_text in sections:
+        chunks = simple_chunk(section_text)
+        for chunk in chunks:
+            documents.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "content": chunk,
+                    "source": source,
+                    "modality": "text",
+                    "metadata": {
+                        "title": title,
+                        "organization": organization,
+                        "year": year,
+                        "language": language,
+                        "section": section_title,
+                    },
+                }
+            )
 
     return documents
 
